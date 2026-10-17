@@ -1,0 +1,1316 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>問い返しAI（詳細版）</title>
+<style>
+:root{
+  --bg:#f6f7f4; --panel:#ffffff; --ink:#1f2a2e; --muted:#5f6b70; --line:#dde2df;
+  --accent:#3d4fa8; --accent-soft:#e7eaf7;
+  --ai:#eef3f6; --me:#fff7e6; --warn:#b3261e; --warn-soft:#fdecea; --test:#7a4bd1; --ok:#2e7d32; --ok-soft:#e6f3e6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","BIZ UDPGothic","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;font-size:17px;line-height:1.7}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar{max-width:880px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h1{font-size:18px;margin:0;font-weight:700}
+.badge{display:inline-block;padding:1px 10px;border-radius:999px;font-size:13px;font-weight:700;background:var(--accent);color:#fff}
+.badge.test{background:var(--test)}
+.badge.state{background:var(--accent-soft);color:var(--accent)}
+.badge.done{background:var(--ok-soft);color:var(--ok)}
+.spacer{flex:1}
+.tabs{display:flex;gap:4px;max-width:880px;margin:0 auto;padding:0 16px 8px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--bg);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--muted)}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+main{max-width:880px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:17px;margin:0 0 10px;color:var(--accent)}
+label.f{display:block;font-weight:700;font-size:15px;margin:14px 0 4px}
+.req{color:var(--warn);font-weight:400;font-size:13px;margin-left:4px}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+input[type=text],input[type=password],select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid #c6ccc8;border-radius:8px;background:#fff;color:var(--ink)}
+select{width:auto;min-width:140px}
+textarea{min-height:78px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row > *{flex:1;min-width:140px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid #c6ccc8;background:#fff;padding:8px 14px;color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+button.ghost{background:transparent}
+button.small{font-size:14px;padding:5px 10px}
+button.danger{color:var(--warn);border-color:#f0c8c4}
+button.calling{background:var(--warn);border-color:var(--warn);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.choices{display:flex;gap:8px;flex-wrap:wrap}
+.choices.col{flex-direction:column;align-items:flex-start}
+.choices label{border:1px solid #c6ccc8;border-radius:999px;padding:4px 14px;cursor:pointer;background:#fff;font-weight:400;display:flex;align-items:center;gap:6px}
+.choices label.on{border-color:var(--accent);background:var(--accent-soft)}
+table.res{border-collapse:collapse;width:100%;font-size:14px}
+table.res th,table.res td{border:1px solid var(--line);padding:4px;text-align:center}
+table.res th{background:var(--accent-soft);font-weight:700}
+table.res input{padding:4px 6px;text-align:center}
+.wrap-table{overflow-x:auto}
+.chat{display:flex;flex-direction:column;gap:10px}
+.msg{max-width:86%;padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-break:break-word}
+.msg .who{display:block;font-size:12px;color:var(--muted)}
+.msg.m{background:var(--ai);align-self:flex-start;border-top-left-radius:2px}
+.msg.u{background:var(--me);align-self:flex-end;border-top-right-radius:2px}
+.msg.callmsg{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.msg .meta{display:block;font-size:12px;color:var(--test);margin-top:4px;font-weight:400}
+.msg .pick{margin-top:6px}
+.inputs-view{white-space:pre-wrap;font-size:14px;color:var(--muted)}
+.alert{background:var(--warn-soft);border:1px solid #f0b4ad;color:var(--warn);border-radius:10px;padding:8px 12px;margin:10px 0}
+.note{font-size:14px;color:var(--muted)}
+.notebox{background:#fff8e1;border:1px solid #ecd99a;border-radius:10px;padding:8px 12px;font-size:14px;margin-bottom:8px}
+.typing{color:var(--muted);font-size:14px;margin-top:8px}
+.composer{position:sticky;bottom:0;background:var(--panel);padding-top:10px}
+.counter{font-size:13px;color:var(--muted);text-align:right}
+.counter.over{color:var(--warn)}
+.hidden{display:none !important}
+details summary{cursor:pointer;color:var(--muted)}
+dialog{border:none;border-radius:14px;padding:0;max-width:760px;width:calc(100% - 24px);max-height:calc(100% - 24px);overflow:auto}
+dialog::backdrop{background:rgba(20,30,35,.45)}
+.dlg{padding:18px}
+.dlg h2{margin:0 0 6px;font-size:18px}
+.dlg h3{font-size:15px;margin:18px 0 4px;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:2px}
+pre.prompt{white-space:pre-wrap;background:var(--bg);padding:12px;border-radius:8px;font-size:13px;max-height:60vh;overflow:auto}
+footer{max-width:880px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);font-size:12px}
+@media (max-width:560px){.msg{max-width:95%}.bar h1{font-size:16px}body{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>問い返しAI</h1><span class="badge">詳細版</span>
+    <span id="testBadge" class="badge test hidden">テスト中</span>
+    <span class="spacer"></span>
+    <button class="ghost" id="openSettings">⚙ 先生用設定</button>
+  </div>
+  <div class="tabs" id="stageTabs"></div>
+</header>
+
+<main>
+  <section class="card" id="whoCard">
+    <h2>だれが使う？</h2>
+    <div class="row">
+      <div><label class="f" for="cls">組</label><select id="cls"></select></div>
+      <div><label class="f" for="num">番号</label><select id="num"></select></div>
+    </div>
+    <p class="note" id="whoNote"></p>
+    <div class="btns hidden" id="testTools">
+      <button id="fillSample">この画面に例文を入れる</button>
+      <button class="danger" id="clearTest">このテスト番号の記録を消す</button>
+    </div>
+  </section>
+
+  <!-- まとめ済みの場面 -->
+  <section class="card hidden" id="v-finished">
+    <h2 id="finTitle"></h2>
+    <p class="note" id="finNote"></p>
+    <div class="btns">
+      <button class="primary" id="finView">対話を見る</button>
+      <button id="finSurvey">アンケートだけ答える</button>
+      <button id="finRedo">はじめからやり直す</button>
+    </div>
+    <div id="finViewBox" class="hidden" style="margin-top:12px"></div>
+  </section>
+
+  <!-- 入力 -->
+  <section class="card hidden" id="v-form">
+    <h2 id="formTitle"></h2>
+    <p class="note" id="formIntro"></p>
+    <div class="notebox">名前や、住所・電話番号などは書かないでください。書いたことは、先生が読みます。</div>
+    <details><summary>先生が示したこと（課題と見たこと）</summary><p class="note" id="seenText" style="white-space:pre-wrap"></p></details>
+    <div id="inForm"></div>
+    <label class="f" id="n1Label"></label>
+    <div class="choices col" id="n1Box"></div>
+    <div id="formMsg" class="alert hidden"></div>
+    <div class="btns"><button class="primary" id="startBtn">ＡＩとの対話をはじめる</button></div>
+  </section>
+
+  <!-- 対話 -->
+  <section class="card hidden" id="v-chat">
+    <div class="row" style="align-items:center">
+      <h2 id="chatTitle" style="margin:0"></h2>
+      <div style="flex:0 0 auto"><button class="small" id="callBtn">先生を呼ぶ</button></div>
+    </div>
+    <details style="margin:8px 0"><summary>自分が入れたこと</summary><div class="inputs-view" id="chatInputs"></div></details>
+    <div class="chat" id="chat"></div>
+    <div id="typing" class="typing hidden">ＡＩが考えています…</div>
+    <div id="chatMsg" class="alert hidden"></div>
+    <div class="btns hidden" id="retryBox"><button class="primary" id="retryBtn">もう一度送る</button></div>
+    <div class="composer">
+      <textarea id="say" placeholder="ここに書いて「送る」（Ctrl＋Enterでも送れます）"></textarea>
+      <div class="counter" id="counter"></div>
+      <div class="btns" style="justify-content:space-between;margin-top:4px">
+        <button class="primary" id="sendBtn">送る</button>
+        <button id="toSummary">まとめを書く</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- まとめ -->
+  <section class="card hidden" id="v-summary">
+    <div class="row" style="align-items:center"><h2 style="margin:0">まとめを書こう</h2><div style="flex:0 0 auto"><button class="small" id="backChat">対話にもどる</button></div></div>
+    <details style="margin:8px 0"><summary>ＡＩとの対話を見る</summary><div class="chat" id="sumChat" style="margin-top:10px"></div></details>
+    <div id="sumForm"></div>
+    <label class="f" id="n2Label"></label>
+    <div class="choices col" id="n2Box"></div>
+    <div id="sumMsg" class="alert hidden"></div>
+    <div class="btns"><button class="primary" id="sendSummary">まとめを送る</button></div>
+  </section>
+
+  <!-- アンケート -->
+  <section class="card hidden" id="v-survey">
+    <div class="row" style="align-items:center"><h2 style="margin:0">アンケート</h2><div style="flex:0 0 auto"><button class="small" id="surveyLater">あとで答える</button></div></div>
+    <div id="svForm"></div>
+    <div id="svMsg" class="alert hidden"></div>
+    <div class="btns"><button class="primary" id="sendSurvey">アンケートを送る</button></div>
+  </section>
+
+  <!-- おわり -->
+  <section class="card hidden" id="v-done">
+    <h2 id="doneTitle">送りました。</h2>
+    <p>学習シートにもどりましょう。</p>
+    <div class="btns"><button id="doneBack">この場面の画面にもどる</button><button id="dlLog">対話の記録をダウンロード</button></div>
+  </section>
+</main>
+<footer id="foot"></footer>
+
+<dialog id="settingsDlg"><div class="dlg">
+  <h2>先生用設定 <span class="badge">詳細版</span></h2>
+  <p class="note">設定はこのブラウザに保存されます。「Gemini」と「授業の値」は汎用版・簡潔版・詳細版で共通です。</p>
+
+  <h3>Gemini</h3>
+  <label class="f" for="apiKey">APIキー <span class="hint">Google AI Studio で発行したもの</span></label>
+  <div class="row"><input type="password" id="apiKey" autocomplete="off"><button id="toggleKey" style="flex:0 0 auto">表示</button></div>
+  <div class="row">
+    <div><label class="f" for="modelMain">モデル <span class="hint">先輩のアプリと同じ初期値</span></label><select id="modelMain" style="width:100%"></select></div>
+    <div><label class="f" for="modelBackup">予備のモデル <span class="hint">つながらないとき</span></label><select id="modelBackup" style="width:100%"></select></div>
+  </div>
+  <div class="btns"><button id="loadModels">キーで使えるモデルを読み込む</button></div>
+
+  <h3>授業の値（先輩の設定シートにあたる）</h3>
+  <div class="row">
+    <div><label class="f" for="demoMin">演示：温めた時間（分）</label><input type="text" id="demoMin"></div>
+    <div><label class="f" for="demoA">長いＡの水温の上昇（℃）</label><input type="text" id="demoA"></div>
+    <div><label class="f" for="demoB">短いＢの水温の上昇（℃）</label><input type="text" id="demoB"></div>
+  </div>
+  <label class="f" for="case1">事例① <span class="hint">広げる。空の事例は出しません</span></label><input type="text" id="case1">
+  <label class="f" for="case2">事例②</label><input type="text" id="case2">
+  <label class="f" for="case3">事例③</label><input type="text" id="case3">
+  <label style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="surveyOn"> まとめのあとにアンケートを出す</label>
+
+  <h3 id="stageSetTitle"></h3>
+  <div id="stageSettings"></div>
+
+  <div class="btns">
+    <button class="primary" id="saveSettings">保存して閉じる</button>
+    <button id="viewPrompt">この段階のプロンプトを見る</button>
+    <button class="danger" id="resetStage">この段階を初期値に戻す</button>
+  </div>
+
+  <h3>記録</h3>
+  <p class="note">対話・まとめ・アンケートは、組・番号ごとにこのブラウザに保存されます。</p>
+  <div class="btns">
+    <button id="exportCsv">この版の記録をCSVで書き出す</button>
+    <button class="danger" id="clearAllTest">テスト番号の記録をすべて消す</button>
+    <button class="danger" id="clearAll">この版の記録をすべて消す</button>
+  </div>
+  <div class="btns" style="justify-content:flex-end"><button class="ghost" id="closeSettings">閉じる</button></div>
+</div></dialog>
+
+<dialog id="promptDlg"><div class="dlg">
+  <h2>組み立てたプロンプト（システム指示）</h2>
+  <p class="note" id="promptMeta"></p>
+  <pre class="prompt" id="promptText"></pre>
+  <div class="btns"><button id="copyPrompt">コピー</button><button class="ghost" id="closePrompt">閉じる</button></div>
+</div></dialog>
+
+<script>
+var VARIANT = 'detailed';
+/* ===== プロンプト（汎用版・詳細版で共通の部分＋版ごとの部分） =====
+ * 共通部：清水先生の PROMPT_COMMON を土台に、学年を入力にして単元に依存しない形にした。
+ * 段階テンプレート：先輩の関連付ける・広げるから単元固有の部分を抜いた形。見いだすも同じ書き方にそろえた。
+ * 単元の情報：汎用版は「課題と生徒が見たこと」だけ。詳細版はそれに加えて、ねらい・習っていること・もちやすい考え・言わない言葉。
+ */
+var PROMPT_VERSION = '2026-10-17 v2';
+
+var PROMPT_COMMON = [
+  '# あなたの役割',
+  'あなたは、{{GRADE}}の理科の授業で、生徒一人一人（または班）と対話する「問い返しの相手」です。',
+  'ソクラテスの問答のように、生徒が自分の説明を見直すための問いを返します。あなたは答えを教える人ではありません。生徒の説明に「根拠」と「一貫性」を求める手本になります。',
+  '',
+  '# 大切にしていること（考えが変わるための四つの条件）',
+  '①不満：今の自分の考えでは、説明しきれないことがあると感じる。',
+  '②わかりやすさ：新しい考えの意味がわかる。',
+  '③もっともらしさ：新しい考えが、見たことや習ったことと合う。',
+  '④実り：新しい考えで、ほかのことも説明できる。',
+  '場面ごとに、どの条件を狙うかが決まっています（下の「この場面」）。狙う条件より先へは進みません。',
+  '',
+  '# 問い返す視点',
+  '【根拠】生徒の考えは、見たこと（実験や演示の事実）、習ったこと（既習の内容）、ふだんの経験のどこから来ているか。',
+  '【一貫性】生徒の考えは、事実や、これまでに習ったことや、生徒が自分で書いたほかのことと、同じ考えで説明できるか。',
+  '食い違いを見つけても、あなたからは指摘しません。食い違う二つを並べ、どこが合わないかを生徒に言わせます。',
+  '',
+  '# 進め方',
+  '・一回の返事は短くする（３文以内）。問いは一回に一つ。',
+  '・生徒が自分で書いた言葉を「　」で引いて問う。生徒の言葉を言い換えたり、まとめ直したりしない。生徒が書いていない言葉を、書いたことにしない。',
+  '・何をねらって問うかは、下の「この場面で問うこと」で決まっています。言い方は、あなたが、その生徒の言葉や様子に合わせて決めます。同じ文をくり返しません。',
+  '・生徒の入力に、すでに書いてあることを、もう一度聞かない。',
+  '・生徒が食い違いを認めない、別の話に読み替える、話を外すときは、並べ方を変えて、もう一度だけ並べる。それでも変わらないときは、それ以上並べず、次へ進む。',
+  '・生徒が「わからない」と答えたときは、同じことを聞き直さず、別の視点から問う。「わからない」が２回続いたら、終わり方に進む。',
+  '・生徒が「教えて」「合ってる？」と聞いたときは、答えも正誤も言わず、直前の問いを別の言葉で短く問い直す。',
+  '・生徒が、すでに習った言葉の意味を聞いたときは、一文で答えてから、問いに戻る。',
+  '・意味の読み取れない入力（「ああ」「。」など）には、引用も問いもせず、書き直しだけを頼む。',
+  '・「はい」「いいえ」で答えられる問いにしない。「どうなる」「何が」「どこが」で問う。',
+  '・６往復を超えたら、一度だけ、もう少し考えるか、まとめに進むかを聞く。回数では打ち切らない。',
+  '',
+  '# してはいけないこと',
+  '・答え、説明、ヒント、たとえ話を言う。',
+  '・正しい、間違っていると言う。',
+  '・ほめる、認める、評価する（「いいですね」「確かめられそうですね」など）。「気持ちはわかります」のような受け止めも言わない。',
+  '・生徒の答えを「〜ということですね」と言い直す。あなたの言葉でまとめる。',
+  '・生徒が書いていない理科の言葉を、あなたから持ち出す。答えに向かう順に問いを重ねる。',
+  '・自分のやり方や決まりを、生徒に説明する。',
+  '・組、番号、名前、住所など、生徒個人のことを聞く。生徒が書いても、くり返さない。',
+  '・理科の学習と関係のない話を続ける（関係のない話には、一文で学習に戻す）。',
+  '',
+  '# 先生を呼んでもらうとき',
+  '別の視点から問い直しても、学習と関係のない話や、この場面と関係のない理科の話が続くときは、「先生を呼んでください」とだけ返します（引用も問いもつけない）。',
+  '',
+  '# 終わり方',
+  '生徒が、この場面の「終わりの目安」に届いたら、「画面の『まとめを書く』を押して、まとめを書いてください。」とだけ伝えます。まとめは、あなたが書きません。【対話の記録】も出しません。',
+  '',
+  '# 生徒の入力の形',
+  '最初のメッセージには、生徒がシートに書いたことが【　】の見出しつきで入っています。',
+  '「（名前）」「（メール）」「（電話番号）」は、アプリが個人の情報を伏せた所です。ふれずに進めてください。'
+].join('\n');
+
+var PROMPT_STAGE = {};
+
+PROMPT_STAGE.miidasu = [
+  '# この場面：見いだす（単元の最初・一人で）',
+  '',
+  '## 狙う条件：①不満',
+  '生徒が、自分の最初の説明では、見たことを説明しきれないことに気付き、何が分かれば説明できるか（調べたいこと）を一つ挙げること。',
+  '新しい考えを確かめさせたり、正しい説明にたどり着かせたりはしません（②より先へは進まない）。',
+  '',
+  '## 生徒が入力するもの',
+  '【予想】【予想の理由】【結果】【結果を見て、なぜだと思うか】',
+  '',
+  '## 事実の扱い',
+  '事実として扱うのは、下の「課題と生徒が見たこと」に書かれていることだけ。書かれていない値や結果を、あなたが作らない。',
+  '',
+  '## この場面で問うこと',
+  '【根拠】ねらい：生徒が、自分の説明が、見たこと・習ったこと・ふだんの経験のどこから来ているかを言う。',
+  '【一貫性】ねらい：生徒が、自分の説明と、見た結果や習ったことが合っているかを言う。',
+  '　並べる材料（いちばん効くものを一つ選ぶ）：',
+  '　・予想の理由　と　実際の結果',
+  '　・結果を見て、なぜだと思うか　と　予想の理由（同じ考えで言えているか）',
+  '　・生徒の説明　と　生徒が自分で出した「習ったこと」',
+  '【次へ】ねらい：生徒が、説明しきれないことを基に、何が分かれば説明できるか（調べたいこと）を一つ言う。',
+  '',
+  '## 終わりの目安',
+  '生徒が、①最初の説明では説明しきれないところを自分の言葉で言い、②調べたいことを一つ言えたとき。'
+].join('\n');
+
+PROMPT_STAGE.kanren = [
+  '# この場面：関連付ける（実験の後・班で）',
+  '入力しているのは班の代表の生徒です。【班の説明】は、班で話し合って書いたものです。',
+  '',
+  '## 狙う条件：②わかりやすさ　③もっともらしさ',
+  '班が、実験のすべての結果を一つの考えで説明し、その考えが、表の値や、これまでに習ったことと合っているかを、班で確かめること。',
+  '班の説明に、説明しきれないことが残っていないように見えるときは、①不満に戻り、表の中で説明に使っていない結果と並べる。',
+  '',
+  '## 生徒が入力するもの',
+  '【班】【４通りの結果】（表の値。空欄のこともある）【班の説明】',
+  '',
+  '## 入力している生徒の、単元の最初の説明（班全員のものではない）',
+  '{{FIRST}}',
+  '',
+  '## 事実の扱い',
+  '事実として扱うのは、「課題と生徒が見たこと」と、生徒が入力した表の値だけ。値が入っていない所は「わからない」とする。あなたは値を作らない。計算もしない。',
+  '',
+  '## この場面で問うこと',
+  '【根拠】ねらい：班が、説明のそれぞれの部分が、表のどの結果（どの行の、どの値）を基にしているかを言う。',
+  '【一貫性】ねらい：班が、その説明ですべての結果が説明できるか、合わない結果がないかを、自分たちで言う。',
+  '　並べる材料（いちばん効くものを一つ選ぶ）：',
+  '　・班の説明　と　表の中で説明に使っていない行',
+  '　・班の説明　と　これまでに習ったこと',
+  '　・班の説明　と　入力している生徒の最初の説明（何が変わったか）',
+  '【言い直し】ねらい：班が、合わない所をふまえて、自分たちの言葉で説明を言い直す。',
+  '',
+  '## 終わりの目安',
+  '班が、①すべての結果を一つの考えで説明し、②その説明が表のどの値を基にしているかを言い、③最初の説明と比べて変わったところを言えたとき。'
+].join('\n');
+
+PROMPT_STAGE.hirogeru = [
+  '# この場面：広げる（単元の終わり・一人で）',
+  '生徒は、班で見直した説明（２回目の説明）をもっています。この時間は、先生が示した事例が、自分の説明で説明できるかを判断し、その理由を書きました。',
+  '',
+  '## 狙う条件：④実り（説明とつながっていなければ、③もっともらしさに戻る）',
+  '生徒が、自分の説明が当てはまるとき、当てはまらないときを、理由とともに言い、説明を、より多くのことに使える形に言い直すこと。',
+  '',
+  '## 生徒が入力するもの',
+  '【２回目の説明】、事例ごとに【事例①（事例の名前）の判断】（当てはまる／当てはまらない／悩む）と【事例①の理由】',
+  '',
+  '## この生徒の、単元の最初の説明',
+  '{{FIRST}}',
+  '',
+  '## 自分から言わないこと',
+  '・事例が当てはまるかどうかの答えと、その理由',
+  '・事例の仕組み（生徒が書いていない仕組みを、あなたから説明しない）',
+  '',
+  '## この場面で問うこと',
+  '【根拠】ねらい：生徒が、判断が、２回目の説明のどの部分、習ったことのどの内容に基づくのかを言う。',
+  '【一貫性】ねらい：生徒が、事例どうしで理由が同じ考えか、説明のどこが当てはまり、どこが当てはまらないかを言う。',
+  '　並べる材料（いちばん効くものを一つ選ぶ）：',
+  '　・事例どうしの理由（同じ考えで判断しているか）',
+  '　・判断の理由　と　２回目の説明',
+  '　・「悩む」とした事例　と　「当てはまる」とした事例',
+  '　・最初の説明　と　今の説明（何が変わったか）',
+  '',
+  '## 終わりの目安',
+  '生徒が、①当てはまるとき・当てはまらないときを理由とともに言い、②説明を言い直し、③最初の説明と比べて変わったところを言えたとき。'
+].join('\n');
+
+/* 汎用版：単元の情報は「課題と生徒が見たこと」だけ */
+var PROMPT_UNIT_GENERIC = [
+  '# 単元の情報について',
+  'この場面について先生から与えられているのは、上の「課題と生徒が見たこと」だけです。',
+  '・何を問うかは、生徒が書いた言葉と、「課題と生徒が見たこと」の事実だけを材料にして決めます。',
+  '・生徒の説明が科学的に足りているかの見立ては、あなたの理科の知識で行いますが、その見立てを生徒に言ってはいけません。',
+  '・生徒が書いていない理科の言葉や、{{GRADE}}ではまだ習っていないかもしれない考えを、あなたから持ち出しません。',
+  '・習ったことを使わせたいときは、あなたが既習の内容を言うのではなく、前に習ったことで使えそうなことは何かを、生徒に言わせます。'
+].join('\n');
+
+/* 詳細版：先生が入力した単元の情報を差し込む */
+function buildUnitDetailed(st) {
+  var out = ['# 単元の情報（先生が入力したもの）'];
+  if (st.nerai && st.nerai.trim()) {
+    out.push('', '## ねらい（生徒にたどり着いてほしい考え）',
+      '※あなたからは言いません。生徒が書いても「正しい」とは言わず、まだ確かめていない考えとして扱い、その根拠を問います。',
+      st.nerai.trim());
+  }
+  if (st.kishu && st.kishu.trim()) {
+    out.push('', '## 習っていること／まだ習っていないこと',
+      '※「まだ習っていない」ことは、あなたから持ち出しません。',
+      st.kishu.trim());
+  }
+  if (st.kangae && st.kangae.trim()) {
+    out.push('', '## 生徒がもちやすい考え（生徒には言わない）',
+      '※生徒の説明のどこにこの考えがあるかを見つけ、「並べる材料」を選ぶのに使います。',
+      st.kangae.trim());
+  }
+  if (st.guard && st.guard.trim()) {
+    out.push('', '## あなたから言わない言葉（生徒が先に書いた言葉は使ってよい）', st.guard.trim());
+  }
+  return out.join('\n');
+}
+
+function buildSystemPrompt(variant, stage, settings, ctx) {
+  ctx = ctx || {};
+  var st = settings.stages[stage];
+  var parts = [PROMPT_COMMON, PROMPT_STAGE[stage]];
+  var seen = ['# 課題と生徒が見たこと', (st.seen || '').trim() || '（先生からの入力なし）'];
+  if (stage === 'hirogeru') {
+    seen.push('', '## 先生が示した事例', (ctx.cases || []).map(function (c) { return '・事例' + c.mark + '：' + c.text; }).join('\n') || '（なし）');
+  }
+  parts.push(seen.join('\n'));
+  parts.push(variant === 'generic' ? PROMPT_UNIT_GENERIC : buildUnitDetailed(st));
+  return parts.join('\n\n')
+    .split('{{GRADE}}').join(settings.grade || '中学校')
+    .split('{{TEMP}}').join(ctx.temp || '')
+    .split('{{FIRST}}').join(ctx.first || '（第１時の記録がない）');
+}
+
+/* ===== 初期値（電流とエネルギー／清水先生の指導案・プロンプト.gs・コード.gs から） ===== */
+var UNIT_TASK = '単元課題：「いろいろな人の『こう温めたい』に１台で応える『水あたため器』を作り、温まり方を変えられる仕組みを、根拠を基に説明しよう。」';
+
+/* 3つの版で共通の「授業の値」（先輩の設定シートにあたる） */
+var DEFAULT_SHARED = {
+  modelMain: 'gemini-3.5-flash',
+  modelBackup: 'gemini-3.6-flash',
+  demoMin: '5',
+  demoA: '2.5',   // テスト用の仮の値（先輩の設定シートでは空欄）
+  demoB: '5.0',
+  case1: '電気ストーブの「強」と「弱」（仮）',
+  case2: '電子レンジ',
+  case3: '',
+  surveyOn: true
+};
+
+/* 汎用版・詳細版の単元の情報（先輩版は使わない） */
+var DEFAULT_SETTINGS = {
+  grade: '中学校２年生',
+  stages: {
+    miidasu: {
+      seen: [
+        UNIT_TASK,
+        '長さだけが違う電熱線Ａ（長い）とＢ（短い）を、同じ電源装置（３Ｖ）に１本ずつつなぎ、水50gを温めた（先生の演示）。',
+        '結果：{{TEMP}}',
+        '多くの生徒は、長いＡが温まると予想していた。電流は測っていない。'
+      ].join('\n'),
+      nerai: [
+        '①最初の理由では、Ｂの方が温まったことを説明できない。',
+        '②習ったことで、ＡとＢの違いを言う（例：Ｂは抵抗が小さく、電流が多く流れる）。',
+        '③電流や電圧と温まり方のつながりは、まだ説明できない。だから調べたいことを一つ挙げる。',
+        '「電流が大きいほど温まる」は、まだ確かめていない考えとして扱う。'
+      ].join('\n'),
+      kishu: [
+        '習っている：抵抗は電流の流れにくさ（同じ電圧なら、抵抗が大きいほど電流は小さい）。直列につなぐと全体の抵抗は大きくなる。直列・並列の電流と電圧のきまり。',
+        'まだ習っていない：電熱線の長さと抵抗の関係、電力、発熱量。'
+      ].join('\n'),
+      kangae: [
+        '・長い、量が多いから温まる（抵抗を持ち込めていない）',
+        '・表面積が大きいから（生物の学習の考え）',
+        '・原子が多いから（原子・分子の学習の考え）',
+        '・無駄なエネルギーが出るから（回路と結びついていない）',
+        '・短い方が流れやすい（本質に近い）'
+      ].join('\n'),
+      guard: '電流計、電圧計、電流、抵抗、電力、ワット、熱量、ジュール、Ω、オーム'
+    },
+    kanren: {
+      seen: [
+        UNIT_TASK,
+        '第２時の実験で、電力（電圧と電流の積）が大きいほど、同じ時間での水の上昇温度が大きいことを調べた。',
+        '第４時（この時間）は、班で、長い電熱線Ａと短い電熱線Ｂを４通りにつないで（Ａだけ、Ｂだけ、ＡとＢの直列、ＡとＢの並列）、同じ電源装置、同じ量の水、同じ時間で、水の温まり方を調べた。結果は生徒が表に入力する。'
+      ].join('\n'),
+      nerai: [
+        '４通りの結果を一つの考えで説明する：つなぎ方で回路全体の抵抗が変わる。電圧が同じなら、回路全体の抵抗が小さいほど電流が大きく、電力が大きくなり、水がよく温まる（並列＞Ｂだけ＞Ａだけ＞直列）。',
+        '表のどの値を見ればよいか、の答えも言わない。'
+      ].join('\n'),
+      kishu: '習っている：回路の電流と電圧のきまり。抵抗。直列、並列の回路全体の抵抗。電力は電圧と電流の積（第２時）。電力が大きいほど、同じ時間での水の上昇温度が大きい（第２時）。',
+      kangae: [
+        '・本数や長さだけで説明している → 直列と並列はどちらも２本なのに結果が違う、を並べる。',
+        '・抵抗だけで説明している（抵抗が大きいほど熱が出る） → 表の回路全体の抵抗と、上昇温度の列を並べる。',
+        '・電流、電圧、電力のどれか一つだけで説明している → その値と、ほかの値（回路全体の抵抗など）のつながりを問う。',
+        '・説明と値がずれている → その行の値を並べる。',
+        '・第１時の考えのまま → 最初の説明と、表のどの結果が合わないかを問う。'
+      ].join('\n'),
+      guard: ''
+    },
+    hirogeru: {
+      seen: [
+        UNIT_TASK,
+        '第５時に、ニクロム線を巻いた抵抗器を回路に加え、つなぐ位置を変えて、温まり方を細かく変えられることを調べた。',
+        'この時間（第６時）は、先生が示した事例ごとに、自分の説明が当てはまるか、当てはまらないか、判断に悩むかを決め、理由を書いた。'
+      ].join('\n'),
+      nerai: [
+        '段階的な調節（つなぎ方）と無段階の調節（抵抗器）を、「回路全体の抵抗を変えると電流が変わり、電力が変わるので、温まり方が変わる」という同じ考えで説明する。',
+        '事例についての先生の想定（生徒には言わない）：',
+        '・電気ストーブの「強」と「弱」 → 当てはまる（電熱線のつなぎ方や本数で回路全体の抵抗を変え、電力を変えている）。',
+        '・電子レンジ → 電力（W）が大きいほど早く温まる点は当てはまるが、食品が熱くなる仕組みは電熱線の発熱ではないので、そのままでは当てはまらない（「悩む」が妥当）。'
+      ].join('\n'),
+      kishu: [
+        '習っている：電力は電圧と電流の積。発生する熱量は電力と時間で決まる。つなぎ方で回路全体の抵抗が変わる。抵抗器で電流を調節できる。',
+        'まだ習っていない：電磁波（マイクロ波）。'
+      ].join('\n'),
+      kangae: [
+        '・電気を使うもの、熱くなるものは全部当てはまる、としている → 「電気が熱に変わる」という考えと、自分の説明の、どちらで判断したかを問う。',
+        '・Ｗ数が大きければ仕組みも同じ、と考えている → 電力の部分と、熱が出る仕組みの部分を分けて問う。',
+        '・判断はできたが、理由がない → 説明のどの部分を使ったかを問う。',
+        '・当てはまらない事例を、説明を広げずに外している → どこまでは当てはまり、どこからが当てはまらないかを問う。'
+      ].join('\n'),
+      guard: 'マイクロ波、電磁波'
+    }
+  }
+};
+
+/* テスト用の例文。見いだすのテスト1〜4は、先輩のコード.gs の testDialogue_miidasu と同じ */
+var SAMPLE_MIIDASU = {
+  T1: { yoso: 'Ａ（長い）', yoso_riyu: '表面積が大きいから', kekka: 'Ｂ（短い）', naze: '電流が流れやすかったから' },
+  T2: { yoso: 'Ａ（長い）', yoso_riyu: '長い方が発熱する部分が多いから', kekka: 'Ｂ（短い）', naze: 'わからない' },
+  T3: { yoso: 'Ａ（長い）', yoso_riyu: '原子が多いから', kekka: 'Ｂ（短い）', naze: '原子がぎゅっとしているから' },
+  T4: { yoso: '同じ', yoso_riyu: 'なんとなく', kekka: 'Ｂ（短い）', naze: 'なんとなく' },
+  T5: { yoso: 'Ａ（長い）', yoso_riyu: '長い方が電熱線がたくさんあるので、熱がたくさん出ると思ったから。', kekka: 'Ｂ（短い）', naze: '短い方が電気が通りやすいから、たくさん温まったと思う。' }
+};
+var SAMPLE_INPUT = {
+  kanren: {
+    han: '3班',
+    table: [
+      ['4.0', '3.0', '0.75', '2.25', '2.5'],
+      ['2.0', '3.0', '1.50', '4.50', '5.0'],
+      ['6.0', '3.0', '0.50', '1.50', '1.6'],
+      ['1.3', '3.0', '2.25', '6.75', '7.4']
+    ],
+    han_setsumei: '電熱線が２本ある方がよく温まる。並列がいちばん温まったのは、電流が２つに分かれて、両方の電熱線で熱が出たから。'
+  },
+  hirogeru: {
+    second: '回路全体の抵抗が小さいほど電流が大きくなり、電力が大きくなるので、水がよく温まる。つなぎ方を変えると回路全体の抵抗が変わるので、温まり方を変えられる。',
+    cases: [
+      ['当てはまる', '強にすると、電熱線のつなぎ方が変わって電力が大きくなるから。'],
+      ['当てはまる', '電気を使って温めているから。'],
+      ['悩む', 'よくわからないから。']
+    ]
+  }
+};
+var SAMPLE_SUMMARY = {
+  miidasu: { zure: '長い方が熱が出ると思ったけど、短い方が温まった。', ima: '短い方が電流が流れやすいから、よく温まったと思う。', shirabetai: '電流の大きさと温まり方の関係' },
+  kanren: { second: '回路全体の抵抗が小さいほど電流が大きくなり、電力が大きくなるので、水がよく温まる。', kawatta: '電熱線の長さや本数ではなく、回路全体の抵抗と電力で説明するようになった。' },
+  hirogeru: { atehamaru: '電熱線に電流が流れて熱が出るものには当てはまる。電子レンジは電熱線ではないので当てはまらない。', third: '電熱線に電流が流れて熱が出るものは、回路全体の抵抗を変えて電流と電力を変えると、温まり方を変えられる。', kawatta: '最初は長さで考えていたが、抵抗と電力で説明できるようになった。' }
+};
+var SAMPLE_SURVEY = { q1: '３　そう思う', q2: '３　そう思う', q3: '少し変わった', q5: '自分の考えの足りないところに気付けた。' };
+
+/* 簡潔版：詳細版と同じ4欄だが、「何を」だけを短く書く。「どう問うか」（→並べる、言わない等の指示）は書かない */
+var DEFAULT_SETTINGS_MIN = {
+  grade: '中学校２年生',
+  stages: {
+    miidasu: {
+      seen: DEFAULT_SETTINGS.stages.miidasu.seen,
+      nerai: 'Ｂは抵抗が小さく電流が多く流れる、という違いに気付き、電流と温まり方の関係を調べたいことに挙げる。',
+      kishu: '習っている：抵抗、直列・並列の電流と電圧のきまり。\nまだ習っていない：電熱線の長さと抵抗の関係、電力、発熱量。',
+      kangae: '・長い（量が多い）から温まる\n・表面積が大きいから\n・原子が多いから\n・短い方が流れやすい（本質に近い）',
+      guard: '電流、電圧計、抵抗、電力、ワット、熱量'
+    },
+    kanren: {
+      seen: DEFAULT_SETTINGS.stages.kanren.seen,
+      nerai: '回路全体の抵抗が小さいほど電流が大きく、電力が大きくなり、よく温まる（並列＞Ｂだけ＞Ａだけ＞直列）。',
+      kishu: '習っている：直列・並列の回路全体の抵抗、電流と電圧のきまり、電力＝電圧×電流、電力が大きいほど上昇温度が大きい。',
+      kangae: '・本数や長さで説明する\n・抵抗が大きいほど熱が出ると考える\n・並列は電流が分かれるから弱いと考える\n・第１時の考えのまま',
+      guard: ''
+    },
+    hirogeru: {
+      seen: DEFAULT_SETTINGS.stages.hirogeru.seen,
+      nerai: 'つなぎ方も抵抗器も「回路全体の抵抗を変えて電流・電力を変える」という同じ考えで説明し、当てはまる範囲を言う。電子レンジは熱の出る仕組みが違う。',
+      kishu: '習っている：電力＝電圧×電流、熱量は電力と時間で決まる、抵抗器で電流を調節できる。\nまだ習っていない：電磁波（マイクロ波）。',
+      kangae: '・電気を使うものは全部当てはまると考える\n・Ｗ数が大きければ仕組みも同じと考える\n・理由を書かずに判断する',
+      guard: 'マイクロ波、電磁波'
+    }
+  }
+};
+
+/* ===== アプリ本体（3つの版で共通。動きは清水先生のコード.gs 第11版２に合わせた） ===== */
+var APP_VERSION = '2026-10-17 第2版（コード.gs 10月16日・第11版２に準拠）';
+var IS_DETAILED = VARIANT === 'detailed' || VARIANT === 'minimal';  // 簡潔版も4欄を使う
+var IS_SENPAI = VARIANT === 'senpai';
+function variantName(v) { return v === 'senpai' ? '先輩版' : v === 'detailed' ? '詳細版' : v === 'minimal' ? '簡潔版' : '汎用版'; }
+var BASE_DEFAULTS = VARIANT === 'minimal' ? DEFAULT_SETTINGS_MIN : DEFAULT_SETTINGS;
+var VARIANT_NAME = variantName(VARIANT);
+var LS = 'toikaeshi2_' + VARIANT + '_';
+var LS_SHARED = 'toikaeshi2_shared';
+var LS_KEY = 'toikaeshi_gemini_key';
+
+/* --- コード.gs の CONFIG にあたるもの --- */
+var CONFIG = {
+  MAX_OUTPUT_TOKENS: 2048, TEMPERATURE: 0.7, MAX_CHARS: 300, MAX_INPUT_CHARS: 400,
+  CLASSES: ['2年1組', '2年2組', '2年3組'], MAX_NO: 40, GROUPS: 10, GUARD_RETRY: 1
+};
+var TEST_IDS = ['T1', 'T2', 'T3', 'T4', 'T5'];
+var SCALE4 = ['４　とてもそう思う', '３　そう思う', '２　あまり思わない', '１　そう思わない'];
+var NATTOKU4 = ['４　とても納得している', '３　納得している', '２　あまり納得していない', '１　納得していない'];
+var SURVEY = [
+  { key: 'q1', head: '問１', label: 'ＡＩとの対話で、自分の考えを見直すことができた。', type: 'radio', options: SCALE4 },
+  { key: 'q2', head: '問２', label: 'ＡＩの問いかけで、自分の説明の足りないところに気付いた。', type: 'radio', options: SCALE4 },
+  { key: 'q3', head: '問３', label: 'ＡＩとの対話で、あなたの考えは変わりましたか。', type: 'radio', options: ['変わった', '少し変わった', '変わらなかった'] },
+  { key: 'q4', head: '問４', label: '考えを見直すきっかけになったＡＩの問いかけは、どれですか。そのとき、どう考えましたか。', type: 'text', fromDialog: true },
+  { key: 'q5', head: '問５', label: 'ＡＩとの対話で、よかったこと、困ったことを書きましょう。', type: 'text' }
+];
+var DONE = 'まとめ済み', ACTIVE = '対話中', ERR = 'エラー', REDO = 'やり直し（前の対話）';
+/* ほめる・言い直す言い方（コード.gs／プロンプト.gs の PRAISE と同じ。3つの版で同じものを使う） */
+var CHECK_PRAISE = /ということですね|ということですか|ということなのですね|確かめられそう|いいですね|良いですね|よいですね|素晴らし|すばらし|素敵|すてき|はっきりしました|その通り|そのとおり|正解です|正解！|合っています|あっています|よく気づ|よく気付|よく考えました|よく考えていま|さすが/;
+var MODEL_CHOICES = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+
+/* --- 場面（コード.gs の SCENES と同じ） --- */
+var SCENES = {
+  miidasu: {
+    id: 'miidasu', short: '見いだす', title: '見いだす（第１時）',
+    intro: 'シートに書いたことを入れて、ＡＩと対話しよう。',
+    inputs: [
+      { key: 'yoso', label: '① 予想：どちらがより温まると考えたか', ai: '予想', type: 'radio', options: ['Ａ（長い）', 'Ｂ（短い）', '同じ'], req: true },
+      { key: 'yoso_riyu', label: '① 予想の理由', ai: '予想の理由', type: 'text', req: true },
+      { key: 'kekka', label: '② 結果：どちらがより温まったか', ai: '結果', type: 'radio', options: ['Ａ（長い）', 'Ｂ（短い）', '同じ'], req: true },
+      { key: 'naze', label: '③ 結果を見て、なぜだと思うか', ai: '結果を見て、なぜだと思うか', type: 'text', req: true }
+    ],
+    nattoku: '今の自分の説明に、どのくらい納得していますか。',
+    summary: [
+      { key: 'zure', label: '最初の考えの、どこがずれていたか', req: true },
+      { key: 'ima', label: '今の説明（習ったことを使って）', req: true },
+      { key: 'shirabetai', label: '調べたいこと', req: true }
+    ],
+    nattokuAfter: '対話のあと、自分の説明に、どのくらい納得していますか。'
+  },
+  kanren: {
+    id: 'kanren', short: '関連付ける', title: '関連付ける（第４時）',
+    intro: '班で一台。４通りの結果と、班の説明を入れて、ＡＩと対話しよう。',
+    inputs: [
+      { key: 'han', label: '班', ai: '班', type: 'select', options: null, req: true },
+      { key: 'table', label: '４通りの結果（わかる所だけでよい）', ai: '４通りの結果', type: 'table',
+        rows: ['Ａだけ（長い）', 'Ｂだけ（短い）', 'ＡとＢの直列', 'ＡとＢの並列'],
+        cols: ['回路全体の抵抗（Ω）', '電圧（V）', '電流（A）', '電力（W）', '水の上昇温度（℃）'], req: false },
+      { key: 'han_setsumei', label: '班の説明（温まり方が変わる仕組み）', ai: '班の説明', type: 'text', req: true }
+    ],
+    nattoku: '班の説明に、どのくらい納得していますか。',
+    summary: [
+      { key: 'second', label: '２回目の説明（班で見直した説明）', req: true },
+      { key: 'kawatta', label: '最初の説明と比べて、変わったところ', req: true }
+    ],
+    nattokuAfter: '対話のあと、班の説明に、どのくらい納得していますか。'
+  },
+  hirogeru: {
+    id: 'hirogeru', short: '広げる', title: '広げる（第６時）',
+    intro: '２回目の説明と、事例ごとの判断を入れて、ＡＩと対話しよう。',
+    inputs: [
+      { key: 'second', label: '２回目の説明（第４時に班で見直した説明）', ai: '２回目の説明', type: 'text', req: true, prefill: 'second' }
+    ],
+    nattoku: '２回目の説明に、どのくらい納得していますか。',
+    summary: [
+      { key: 'atehamaru', label: '説明が当てはまるとき・当てはまらないとき', req: true },
+      { key: 'third', label: '３回目の説明', req: true },
+      { key: 'kawatta', label: '最初の説明と比べて、変わったところ', req: true }
+    ],
+    nattokuAfter: '対話のあと、自分の説明に、どのくらい納得していますか。'
+  }
+};
+var SCENE_ORDER = ['miidasu', 'kanren', 'hirogeru'];
+var CIRCLED = ['', '①', '②', '③'];
+
+/* ================= 保存 ================= */
+function lsGet(k, fb) { try { var v = localStorage.getItem(k); return v === null ? fb : JSON.parse(v); } catch (e) { return fb; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function loadShared() { var d = clone(DEFAULT_SHARED), s = lsGet(LS_SHARED, null); if (s) for (var k in s) d[k] = s[k]; return d; }
+function loadSettings() {
+  var d = clone(BASE_DEFAULTS), s = lsGet(LS + 'settings', null);
+  if (!s) return d;
+  if (s.grade) d.grade = s.grade;
+  SCENE_ORDER.forEach(function (st) { if (s.stages && s.stages[st]) for (var f in s.stages[st]) d.stages[st][f] = s.stages[st][f]; });
+  return d;
+}
+var shared = loadShared();
+var settings = loadSettings();
+var apiKey = lsGet(LS_KEY, '');
+var ui = lsGet(LS + 'ui', { stage: 'miidasu', cls: '', num: '' });
+function saveUi() { lsSet(LS + 'ui', ui); }
+
+function recKey(cls, num) { return LS + 'rec_' + (cls || ui.cls) + '_' + (num || ui.num); }
+function getRec() { return lsGet(recKey(), { cls: ui.cls, num: ui.num, dialogs: [] }); }
+function putRec(r) { lsSet(recKey(), r); }
+function isTest() { return !!ui.num && ui.num.charAt(0) === 'T'; }
+function numLabel(n) { n = String(n); return n.charAt(0) === 'T' ? 'テスト' + n.slice(1) : n + '番'; }
+function hasWho() { return !!(ui.cls && ui.num); }
+
+function latestDialog(scene) {
+  var r = getRec(), pick = null;
+  r.dialogs.forEach(function (d) { if (d.scene === scene && d.status !== REDO) pick = d; });
+  return pick;
+}
+function saveDialog(d) {
+  var r = getRec(), found = false;
+  d.updated = Date.now();
+  for (var i = 0; i < r.dialogs.length; i++) if (r.dialogs[i].id === d.id) { r.dialogs[i] = d; found = true; }
+  if (!found) r.dialogs.push(d);
+  putRec(r);
+}
+
+/* ================= 小道具 ================= */
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function cut(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.substring(0, n) : s; }
+function z2h(s) { return String(s == null ? '' : s).replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }); }
+function json(s, d) { try { return s ? JSON.parse(s) : d; } catch (e) { return d; } }
+function msg(id, text) { var el = $(id); if (!text) { el.classList.add('hidden'); el.textContent = ''; return; } el.textContent = text; el.classList.remove('hidden'); }
+function fmtTime(t) { var d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.toLocaleTimeString('ja-JP'); }
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function download(name, text, type) {
+  var b = new Blob([text], { type: type || 'text/plain;charset=utf-8' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+/* 個人の情報を伏せる（コード.gs の mask_ と同じ。名簿がないので氏名は伏せない） */
+function mask(text) {
+  var t = String(text == null ? '' : text);
+  t = t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '（メール）');
+  t = t.replace(/[0０][0-9０-９]{1,4}[-－ー‐−]?[0-9０-９]{1,4}[-－ー‐−]?[0-9０-９]{3,4}/g, function (m) {
+    var digits = z2h(m).replace(/\D/g, '');
+    return (digits.length >= 10 && digits.length <= 11) ? '（電話番号）' : m;
+  });
+  return t;
+}
+
+/* ================= 場面の定義・入力の形（コード.gs と同じ） ================= */
+function cases() {
+  var out = [];
+  for (var n = 1; n <= 3; n++) { var t = String(shared['case' + n] || '').trim(); if (t) out.push({ n: n, mark: CIRCLED[n], text: t }); }
+  return out;
+}
+function sceneDef(id) {
+  var d = clone(SCENES[id]);
+  if (id === 'kanren') { var g = []; for (var i = 1; i <= CONFIG.GROUPS; i++) g.push(i + '班'); d.inputs[0].options = g; }
+  if (id === 'hirogeru') {
+    cases().forEach(function (c) {
+      d.inputs.push({ key: 'case' + c.n + '_hantei', label: '事例' + c.mark + '　' + c.text + '　…　判断', ai: '事例' + c.mark + '（' + c.text + '）の判断', type: 'radio', options: ['当てはまる', '当てはまらない', '悩む'], req: true });
+      d.inputs.push({ key: 'case' + c.n + '_riyu', label: '事例' + c.mark + 'の判断の理由', ai: '事例' + c.mark + 'の理由', type: 'text', req: true });
+    });
+  }
+  return d;
+}
+function valueText(f, v) {
+  if (f.type === 'table') {
+    v = v || [];
+    return f.rows.map(function (rn, i) {
+      return rn + '：' + f.cols.map(function (cn, j) { var x = (v[i] || [])[j]; return cn.replace(/（.*）/, '') + ' ' + (x ? x + (cn.match(/（(.*)）/) || ['', ''])[1] : '（空欄）'); }).join('、');
+    }).join('\n');
+  }
+  return v ? v : '（書いていない）';
+}
+function formatInputs(def, inputs) {
+  return def.inputs.map(function (f) { return '【' + f.ai + '】' + (f.type === 'table' ? '\n' : '') + valueText(f, inputs[f.key]); }).join('\n');
+}
+function tempText() {
+  var t = String(shared.demoMin || '').trim(), a = String(shared.demoA || '').trim(), b = String(shared.demoB || '').trim();
+  if (!a || !b) return '水温の値は、まだ入っていない。短いＢの方が早く温まった。';
+  return (t ? t + '分間で、' : '') + '長いＡの水は' + a + '℃、短いＢの水は' + b + '℃上がった。';
+}
+/* 見いだすで書いた予想の理由・結果の理由・今の説明（コード.gs の firstOf_ と同じ形） */
+function firstOf() {
+  var r = getRec(), pick = null;
+  r.dialogs.forEach(function (d) { if (d.scene === 'miidasu' && d.status !== REDO) pick = d; });
+  if (!pick) return '（第１時の記録がない）';
+  var inp = pick.inputs || {}, sm = pick.summary || {};
+  return '予想の理由「' + (inp.yoso_riyu || '') + '」。結果を見て「' + (inp.naze || '') + '」' + (sm.ima ? '。対話のあとの説明「' + sm.ima + '」' : '');
+}
+function secondOf() {
+  var v = '';
+  getRec().dialogs.forEach(function (d) { if (d.scene === 'kanren' && d.status === DONE) v = (d.summary || {}).second || v; });
+  return v;
+}
+function promptCtx(d) {
+  return { temp: tempText(), first: mask(firstOf()), second: mask((d && d.inputs && d.inputs.second) || '（なし）'), cases: cases() };
+}
+
+/* ================= 画面：上部 ================= */
+function renderTabs() {
+  $('stageTabs').innerHTML = SCENE_ORDER.map(function (st) {
+    return '<button class="tab' + (ui.stage === st ? ' on' : '') + '" data-st="' + st + '">' + SCENES[st].title + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('stageTabs').children, function (b) {
+    b.onclick = function () { ui.stage = b.dataset.st; saveUi(); openScene(); renderTabs(); };
+  });
+}
+
+function renderWho() {
+  $('cls').innerHTML = '<option value="">選ぶ</option>' + CONFIG.CLASSES.map(function (c) { return '<option' + (ui.cls === c ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+  var h = '<option value="">選ぶ</option>';
+  for (var i = 1; i <= CONFIG.MAX_NO; i++) h += '<option value="' + i + '"' + (ui.num === String(i) ? ' selected' : '') + '>' + i + '番</option>';
+  h += '<optgroup label="動作確認用">' + TEST_IDS.map(function (t) { return '<option value="' + t + '"' + (ui.num === t ? ' selected' : '') + '>' + numLabel(t) + '</option>'; }).join('') + '</optgroup>';
+  $('num').innerHTML = h;
+  $('testBadge').classList.toggle('hidden', !isTest());
+  $('testTools').classList.toggle('hidden', !isTest());
+  if (!hasWho()) { $('whoNote').textContent = '組と番号を選んでください。'; return; }
+  var st = SCENE_ORDER.map(function (k) { var d = latestDialog(k); return SCENES[k].short + '：' + (d ? (d.status === DONE ? 'まとめ済み' : 'とちゅう') : '—'); }).join('／');
+  $('whoNote').textContent = ui.cls + '　' + numLabel(ui.num) + (isTest() ? '（動作確認用）' : '') + '　' + st;
+}
+
+var VIEWS = ['v-finished', 'v-form', 'v-chat', 'v-summary', 'v-survey', 'v-done'];
+function show(id) { VIEWS.forEach(function (v) { $(v).classList.toggle('hidden', v !== id); }); }
+
+/* ================= 場面を開く ================= */
+var D = null; // いまの対話
+var busy = false;
+
+function openScene() {
+  renderWho(); D = null; busy = false;
+  if (!hasWho()) { show(null); return; }
+  var d = latestDialog(ui.stage);
+  if (d && (d.status === ACTIVE || d.status === ERR)) { D = d; enterChat(); return; }
+  if (d && d.status === DONE) { D = d; renderFinished(); return; }
+  renderForm();
+}
+
+function renderFinished() {
+  $('finTitle').innerHTML = esc(SCENES[D.scene].title) + ' <span class="badge done">まとめ済み</span>';
+  $('finNote').textContent = '納得感：' + (D.n1 || '—') + ' → ' + (D.n2 || '—') + '　往復：' + D.turns + '回' + (D.survey ? '　アンケート：回答済み' : '');
+  $('finSurvey').classList.toggle('hidden', !!D.survey);
+  $('finViewBox').classList.add('hidden');
+  show('v-finished');
+}
+
+/* ================= 入力 ================= */
+function fieldHtml(f, name, val) {
+  var h = '<label class="f">' + esc(f.label) + (f.req ? '<span class="req">（必ず）</span>' : '') + '</label>';
+  if (f.type === 'radio') {
+    h += '<div class="choices">' + f.options.map(function (o) {
+      var on = val === o;
+      return '<label class="' + (on ? 'on' : '') + '"><input type="radio" name="' + name + '" value="' + esc(o) + '"' + (on ? ' checked' : '') + '>' + esc(o) + '</label>';
+    }).join('') + '</div>';
+  } else if (f.type === 'select') {
+    h += '<select name="' + name + '"><option value="">選ぶ</option>' + f.options.map(function (o) { return '<option' + (val === o ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+  } else if (f.type === 'table') {
+    val = val || [];
+    h += '<div class="wrap-table"><table class="res"><tr><th></th>' + f.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>' +
+      f.rows.map(function (rn, i) {
+        return '<tr><th>' + esc(rn) + '</th>' + f.cols.map(function (c, j) { return '<td><input type="text" inputmode="decimal" data-t="' + name + '" data-i="' + i + '" data-j="' + j + '" value="' + esc((val[i] || [])[j] || '') + '"></td>'; }).join('') + '</tr>';
+      }).join('') + '</table></div>';
+  } else {
+    h += '<textarea name="' + name + '" maxlength="' + CONFIG.MAX_INPUT_CHARS + '">' + esc(val || '') + '</textarea>';
+  }
+  return h;
+}
+function radioBox(boxId, name, options, val) {
+  $(boxId).innerHTML = options.map(function (o) {
+    var on = val && String(val).charAt(0) === String(o).charAt(0);
+    return '<label class="' + (on ? 'on' : '') + '"><input type="radio" name="' + name + '" value="' + esc(o) + '"' + (on ? ' checked' : '') + '>' + esc(o) + '</label>';
+  }).join('');
+}
+function collect(defs, prefix, root) {
+  var out = {};
+  defs.forEach(function (f) {
+    var name = prefix + f.key;
+    if (f.type === 'radio') { var c = root.querySelector('input[name="' + name + '"]:checked'); out[f.key] = c ? c.value : ''; }
+    else if (f.type === 'table') {
+      var rows = [];
+      root.querySelectorAll('input[data-t="' + name + '"]').forEach(function (inp) { var i = +inp.dataset.i, j = +inp.dataset.j; (rows[i] = rows[i] || [])[j] = inp.value.trim(); });
+      out[f.key] = rows;
+    } else { var el = root.querySelector('[name="' + name + '"]'); out[f.key] = el ? el.value.trim() : ''; }
+  });
+  return out;
+}
+function seenForDisplay() {
+  if (IS_SENPAI) return '（先輩版のプロンプトに書かれています）\n水温：' + tempText() + (ui.stage === 'hirogeru' ? '\n事例：' + cases().map(function (c) { return c.mark + c.text; }).join('、') : '');
+  var s = (settings.stages[ui.stage].seen || '').split('{{TEMP}}').join(tempText());
+  if (ui.stage === 'hirogeru') s += '\n事例：' + cases().map(function (c) { return c.mark + c.text; }).join('、');
+  return s;
+}
+
+function renderForm(values, n1) {
+  var def = sceneDef(ui.stage);
+  $('formTitle').textContent = def.title;
+  $('formIntro').textContent = def.intro;
+  $('seenText').textContent = seenForDisplay();
+  var prefill = { second: secondOf() };
+  values = values || {};
+  $('inForm').innerHTML = def.inputs.map(function (f) {
+    var v = values[f.key];
+    if ((v === undefined || v === '') && f.prefill && prefill[f.prefill]) v = prefill[f.prefill];
+    return fieldHtml(f, 'in_' + f.key, v);
+  }).join('');
+  $('n1Label').textContent = def.nattoku;
+  radioBox('n1Box', 'n1', NATTOKU4, n1);
+  msg('formMsg', ''); $('startBtn').disabled = false;
+  if (ui.stage === 'hirogeru' && !cases().length) { msg('formMsg', '事例が、まだ入っていません（先生用設定）。'); $('startBtn').disabled = true; }
+  show('v-form');
+}
+
+function startDialog() {
+  if (!apiKey) { alert('先に「先生用設定」でGeminiのAPIキーを入れてください。'); openSettings(); return; }
+  var def = sceneDef(ui.stage);
+  var v = collect(def.inputs, 'in_', $('inForm'));
+  for (var i = 0; i < def.inputs.length; i++) {
+    var f = def.inputs[i];
+    if (f.type !== 'table') v[f.key] = cut(v[f.key], CONFIG.MAX_INPUT_CHARS);
+    if (f.req && !v[f.key]) { msg('formMsg', '「' + f.label + '」を入れてください。'); return; }
+  }
+  var c = document.querySelector('input[name="n1"]:checked');
+  if (!c) { msg('formMsg', '納得の度合いを選んでください。'); return; }
+  var t = Date.now();
+  D = {
+    id: 'D' + t + '-' + Math.random().toString(36).slice(2, 6), variant: VARIANT, cls: ui.cls, num: ui.num, scene: ui.stage,
+    status: ACTIVE, turns: 0, calling: '', n1: z2h(String(c.value).charAt(0)), n2: '', started: t, updated: t,
+    inputs: v, history: [{ r: 'u', k: 'input', t: formatInputs(def, v), ts: t }], summary: {}, survey: null,
+    guard: 0, pv: PROMPT_VERSION, av: APP_VERSION, models: []
+  };
+  saveDialog(D); enterChat(); talk();
+}
+
+/* ================= 対話 ================= */
+function enterChat() {
+  $('chatTitle').textContent = SCENES[D.scene].title;
+  $('chatInputs').textContent = D.history[0] ? D.history[0].t : '';
+  drawChat($('chat'), D.history, false, true);
+  setCall(!!D.calling);
+  $('say').value = ''; updateCounter();
+  var last = D.history[D.history.length - 1];
+  if (last && last.r === 'u') showRetry('返事がまだ届いていません。「もう一度送る」を押してください。'); else hideRetry();
+  show('v-chat');
+}
+
+function drawChat(root, history, pickable, withMeta) {
+  root.innerHTML = history.filter(function (h) { return h.k !== 'input'; }).map(function (h) {
+    var call = h.r === 'm' && /先生を呼んで/.test(h.t);
+    var meta = '';
+    if (withMeta && isTest() && h.r === 'm' && (h.regen || (h.issues && h.issues.length) || h.stripped || h.model)) {
+      meta = '<span class="meta">【確認用】' + esc(h.model || '') + (h.regen ? '／作り直し' + h.regen + '回：' + esc((h.regenWhy || []).join(' / ')) : '') + (h.stripped ? '／ほめ言葉の文を削った' : '') + (h.issues && h.issues.length ? '／残った決まり外れ：' + esc(h.issues.join('；')) : '') + '</span>';
+    }
+    return '<div class="msg ' + h.r + (call ? ' callmsg' : '') + '"><span class="who">' + (h.r === 'u' ? 'あなた' : 'ＡＩ') + '</span>' + esc(h.t) + meta +
+      (pickable && h.r === 'm' ? '<div class="pick"><button class="small" data-pick="' + esc(h.t) + '">この問いかけを問４に書く</button></div>' : '') + '</div>';
+  }).join('');
+  if (root.id === 'chat' && root.lastElementChild) root.lastElementChild.scrollIntoView({ block: 'nearest' });
+}
+
+function setBusy(on) { busy = on; $('sendBtn').disabled = on; $('retryBtn').disabled = on; $('typing').classList.toggle('hidden', !on); }
+function showRetry(text) { msg('chatMsg', text); $('retryBox').classList.remove('hidden'); $('sendBtn').disabled = true; }
+function hideRetry() { $('retryBox').classList.add('hidden'); msg('chatMsg', ''); $('sendBtn').disabled = false; }
+function updateCounter() { var n = $('say').value.length; $('counter').textContent = n + '／' + CONFIG.MAX_CHARS + '字'; $('counter').classList.toggle('over', n > CONFIG.MAX_CHARS); }
+function setCall(on) { $('callBtn').className = 'small' + (on ? ' calling' : ''); $('callBtn').textContent = on ? '先生を呼んでいます（取り消す）' : '先生を呼ぶ'; }
+
+function send() {
+  if (busy || !D) return;
+  var t = $('say').value.trim();
+  if (!t) return;
+  if (t.length > CONFIG.MAX_CHARS) { msg('chatMsg', '一回に送れるのは' + CONFIG.MAX_CHARS + '字までです。'); return; }
+  D.history.push({ r: 'u', t: t, ts: Date.now() });
+  D.turns = D.history.filter(function (h) { return h.r === 'u' && h.k !== 'input'; }).length;
+  $('say').value = ''; updateCounter(); saveDialog(D);
+  drawChat($('chat'), D.history, false, true);
+  talk();
+}
+
+/* --- ＡＩ（コード.gs の talk_ と同じ流れ） --- */
+function guardWordsFor(scene) {
+  if (IS_SENPAI) return (SENPAI_GUARD[scene] || []).slice();
+  if (!IS_DETAILED) return [];
+  return (settings.stages[scene].guard || '').split(/[、,，\s]+/).map(function (w) { return w.trim(); }).filter(Boolean);
+}
+function checkReply(scene, text, studentText) {
+  var out = [];
+  var m = String(text).match(CHECK_PRAISE);
+  if (m) out.push({ type: 'praise', msg: 'ほめる・認める・言い直す言い方（「' + m[0] + '」）が入っている' });
+  var words = guardWordsFor(scene).filter(function (w) { return text.indexOf(w) >= 0 && studentText.indexOf(w) < 0; });
+  words = words.filter(function (w) { return !words.some(function (o) { return o !== w && o.indexOf(w) >= 0; }); });
+  if (words.length) out.push({ type: 'word', msg: '生徒が書いていない言葉「' + words.join('」「') + '」を、あなたから出している' });
+  if ((String(text).match(/[？?]/g) || []).length >= 3) out.push({ type: 'many', msg: '問いが多い（一回に一つにする）' });
+  return out;
+}
+function stripPraise(text) {
+  var parts = String(text).split(/(?<=[。！？!?\n])/);
+  return parts.filter(function (p) { return !CHECK_PRAISE.test(p); }).join('').trim();
+}
+
+function talk() {
+  setBusy(true); hideRetry(); $('sendBtn').disabled = true;
+  var sys = buildSystemPrompt(VARIANT, D.scene, settings, promptCtx(D));
+  var contents = D.history.map(function (h) { return { role: h.r === 'u' ? 'user' : 'model', parts: [{ text: h.r === 'u' ? mask(h.t) : h.t }] }; });
+  var studentText = D.history.filter(function (h) { return h.r === 'u'; }).map(function (h) { return h.t; }).join('\n');
+  var regen = 0, why = [];
+  function loop(res) {
+    if (res.blocked) return res;
+    var issues = checkReply(D.scene, res.text, studentText);
+    if (issues.length && regen < CONFIG.GUARD_RETRY) {
+      regen++; why.push(issues.map(function (x) { return x.msg; }).join('／'));
+      var note = '\n\n# 作り直しの指示（この一回だけ）\nあなたが作った返事の下書き「' + cut(res.text, 300) + '」は、次の決まりに合いません：' +
+        issues.map(function (x) { return x.msg; }).join('／') + '。問いのねらいは同じまま、決まりに合う返事を作り直してください。下書きのことにはふれないでください。';
+      return callWithFallback(sys + note, contents).then(loop);
+    }
+    res.issues = issues;
+    if (issues.some(function (x) { return x.type === 'praise'; })) {
+      var st = stripPraise(res.text);
+      if (st !== res.text && /[？?]/.test(st)) { res.text = st; res.stripped = true; res.issues = checkReply(D.scene, res.text, studentText); }
+    }
+    return res;
+  }
+  callWithFallback(sys, contents).then(loop).then(function (res) {
+    var t = Date.now();
+    D.history.push({ r: 'm', t: res.text, ts: t, model: res.model, regen: regen, regenWhy: why, stripped: !!res.stripped, issues: (res.issues || []).map(function (x) { return x.msg; }), blocked: !!res.blocked });
+    D.status = ACTIVE;
+    if (res.issues && res.issues.length) D.guard = (+D.guard || 0) + 1;
+    if (/先生を呼んで/.test(res.text) && !D.calling) { D.calling = t; setCall(true); }
+    saveDialog(D); setBusy(false); hideRetry();
+    drawChat($('chat'), D.history, false, true);
+    $('toSummary').className = /まとめを書く/.test(res.text) ? 'primary' : '';
+  }).catch(function (e) {
+    D.status = ERR; saveDialog(D); setBusy(false);
+    showRetry((e.kind === '混んでいる' ? 'いま、たくさんの人が送っています。少し待って、「もう一度送る」を押してください。' : 'ＡＩの返事が届きませんでした。少し待って、「もう一度送る」を押してください。') + '（' + cut(e.message, 160) + '）');
+  });
+}
+
+/* --- Gemini（コード.gs の callWithFallback_ / callGeminiModel_ と同じ） --- */
+function callWithFallback(sys, contents) {
+  var models = [shared.modelMain, shared.modelBackup].filter(Boolean), lastErr = null;
+  var mi = 0, attempt = 0;
+  function next() {
+    if (mi >= models.length) return Promise.reject(lastErr || new Error('不明'));
+    var model = models[mi];
+    return callGeminiModel(model, sys, contents).then(function (r) { r.model = model; return r; }, function (e) {
+      lastErr = e;
+      if (e.fatal) throw e;
+      if (e.kind === 'ＡＰＩの設定' || e.kind === 'モデルがない' || attempt >= 1) { mi++; attempt = 0; return next(); }
+      attempt++;
+      return sleep(800 * attempt).then(next);
+    });
+  }
+  return next();
+}
+function callGeminiModel(model, sys, contents) {
+  if (!apiKey) { var e0 = new Error('APIキーがありません'); e0.fatal = true; return Promise.reject(e0); }
+  var payload = {
+    systemInstruction: { parts: [{ text: sys }] }, contents: contents,
+    generationConfig: { temperature: CONFIG.TEMPERATURE, maxOutputTokens: CONFIG.MAX_OUTPUT_TOKENS },
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_LOW_AND_ABOVE' }
+    ]
+  };
+  return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload)
+  }).then(function (resp) {
+    return resp.text().then(function (body) {
+      var code = resp.status, e;
+      if (code === 429) { e = new Error('429 混んでいる'); e.kind = '混んでいる'; throw e; }
+      if (code === 400 || code === 401 || code === 403) { e = new Error(code + ' ' + cut(body, 300)); e.kind = 'ＡＰＩの設定'; if (code !== 400) e.fatal = true; throw e; }
+      if (code === 404) { e = new Error('404 モデルがない：' + model); e.kind = 'モデルがない'; throw e; }
+      if (code >= 500) { e = new Error(code + ' サーバー'); e.kind = 'ＡＩの返事が届かない'; throw e; }
+      var j = json(body, {});
+      if (j.promptFeedback && j.promptFeedback.blockReason) return { text: 'その書き方には、答えられません。理科の学習のことを、書き直してください。', blocked: true };
+      var cand = (j.candidates || [])[0] || {};
+      if (cand.finishReason === 'SAFETY' || cand.finishReason === 'PROHIBITED_CONTENT') return { text: 'その書き方には、答えられません。理科の学習のことを、書き直してください。', blocked: true };
+      var text = ((cand.content && cand.content.parts) || []).filter(function (p) { return !p.thought; }).map(function (p) { return p.text || ''; }).join('').trim();
+      if (!text) { e = new Error('空の返事（' + (cand.finishReason || '') + '）'); e.kind = 'ＡＩの返事が空'; throw e; }
+      return { text: text, blocked: false };
+    });
+  }, function (err) { var e = new Error('つながりませんでした（' + err.message + '）'); e.kind = 'ＡＩの返事が届かない'; throw e; });
+}
+
+/* ================= まとめ ================= */
+function renderSummary(values, n2) {
+  var def = SCENES[D.scene];
+  drawChat($('sumChat'), D.history, false, false);
+  values = values || D.summary || {};
+  $('sumForm').innerHTML = def.summary.map(function (f) { return fieldHtml(f, 'sm_' + f.key, values[f.key]); }).join('');
+  $('n2Label').textContent = def.nattokuAfter;
+  radioBox('n2Box', 'n2', NATTOKU4, n2 || D.n2);
+  msg('sumMsg', '');
+  show('v-summary');
+}
+function sendSummary() {
+  var def = SCENES[D.scene], v = collect(def.summary, 'sm_', $('sumForm'));
+  for (var i = 0; i < def.summary.length; i++) {
+    var f = def.summary[i]; v[f.key] = cut(v[f.key], CONFIG.MAX_INPUT_CHARS);
+    if (f.req && !v[f.key]) { msg('sumMsg', '「' + f.label + '」を書いてください。'); return; }
+  }
+  var c = document.querySelector('input[name="n2"]:checked');
+  if (!c) { msg('sumMsg', '納得の度合いを選んでください。'); return; }
+  D.summary = v; D.n2 = z2h(String(c.value).charAt(0)); D.status = DONE; D.calling = '';
+  saveDialog(D); renderWho();
+  if (shared.surveyOn) openSurvey(); else { $('doneTitle').textContent = 'まとめを送りました。'; show('v-done'); }
+}
+
+/* ================= アンケート ================= */
+function openSurvey(values) {
+  values = values || D.survey || {};
+  $('svForm').innerHTML = SURVEY.map(function (q) {
+    var h = '<label class="f">' + esc(q.head + '　' + q.label) + '</label>';
+    if (q.type === 'radio') {
+      h += '<div class="choices' + (q.options.length > 3 ? ' col' : '') + '">' + q.options.map(function (o) {
+        var on = values[q.key] === o;
+        return '<label class="' + (on ? 'on' : '') + '"><input type="radio" name="sv_' + q.key + '" value="' + esc(o) + '"' + (on ? ' checked' : '') + '>' + esc(o) + '</label>';
+      }).join('') + '</div>';
+    } else {
+      if (q.fromDialog) h += '<details style="margin:6px 0"><summary>ＡＩとの対話を見る</summary><div class="chat" id="svChat" style="margin-top:10px"></div></details>';
+      h += '<textarea name="sv_' + q.key + '">' + esc(values[q.key] || '') + '</textarea>';
+    }
+    return h;
+  }).join('');
+  var sc = $('svChat'); if (sc) drawChat(sc, D.history, true, false);
+  msg('svMsg', '');
+  show('v-survey');
+}
+function collectSurvey() {
+  var v = {};
+  SURVEY.forEach(function (q) {
+    if (q.type === 'radio') { var c = document.querySelector('input[name="sv_' + q.key + '"]:checked'); v[q.key] = c ? c.value : ''; }
+    else { var t = $('svForm').querySelector('textarea[name="sv_' + q.key + '"]'); v[q.key] = t ? t.value.trim() : ''; }
+  });
+  return v;
+}
+function sendSurvey() {
+  var v = collectSurvey();
+  for (var i = 0; i < SURVEY.length; i++) if (!String(v[SURVEY[i].key] || '').trim()) { msg('svMsg', SURVEY[i].head + 'に答えてください。'); return; }
+  D.survey = v; D.surveyAt = Date.now(); saveDialog(D);
+  $('doneTitle').textContent = 'アンケートを送りました。'; show('v-done');
+}
+
+/* ================= 例文（テスト番号のときだけ） ================= */
+function fillSample() {
+  var vis = VIEWS.filter(function (v) { return !$(v).classList.contains('hidden'); })[0];
+  if (vis === 'v-form') {
+    var vals = ui.stage === 'miidasu' ? clone(SAMPLE_MIIDASU[ui.num] || SAMPLE_MIIDASU.T1) : ui.stage === 'kanren' ? { han: SAMPLE_INPUT.kanren.han, table: SAMPLE_INPUT.kanren.table, han_setsumei: SAMPLE_INPUT.kanren.han_setsumei } : (function () {
+      var o = { second: secondOf() || SAMPLE_INPUT.hirogeru.second };
+      cases().forEach(function (c, i) { var s = SAMPLE_INPUT.hirogeru.cases[i] || SAMPLE_INPUT.hirogeru.cases[0]; o['case' + c.n + '_hantei'] = s[0]; o['case' + c.n + '_riyu'] = s[1]; });
+      return o;
+    })();
+    renderForm(vals, NATTOKU4[2]);
+  } else if (vis === 'v-summary') renderSummary(SAMPLE_SUMMARY[D.scene], NATTOKU4[1]);
+  else if (vis === 'v-survey') { var s = clone(SAMPLE_SURVEY); var lastM = D.history.filter(function (h) { return h.r === 'm'; })[0]; s.q4 = lastM ? '「' + lastM.t + '」で、自分の説明を見直した。' : 'とくになし'; openSurvey(s); }
+  else if (vis === 'v-chat') { $('say').value = 'わからない'; updateCounter(); }
+  else alert('入力・対話・まとめ・アンケートの画面で使えます。');
+}
+
+/* ================= 記録 ================= */
+function dialogText(d) {
+  var def = sceneDef(d.scene);
+  var h = ['問い返しAI（' + variantName(d.variant) + '）対話の記録', '場面：' + SCENES[d.scene].title + '　' + d.cls + '　' + numLabel(d.num),
+    '開始：' + fmtTime(d.started) + '　状態：' + d.status + '　プロンプト：' + d.pv, '納得感：' + (d.n1 || '—') + ' → ' + (d.n2 || '—'), '', '［入力したこと］', d.history[0] ? d.history[0].t : '', ''];
+  d.history.filter(function (x) { return x.k !== 'input'; }).forEach(function (x) {
+    h.push((x.r === 'm' ? '［ＡＩ］' : '［生徒］') + x.t + (x.r === 'm' && (x.regen || x.stripped || (x.issues || []).length) ? '\n　（' + (x.model || '') + (x.regen ? '／作り直し：' + (x.regenWhy || []).join(' / ') : '') + (x.stripped ? '／ほめ言葉の文を削った' : '') + ((x.issues || []).length ? '／決まり外れ：' + x.issues.join('；') : '') + '）' : ''));
+  });
+  h.push('', '［まとめ］');
+  SCENES[d.scene].summary.forEach(function (f) { h.push(f.label + '：' + ((d.summary || {})[f.key] || '（書いていない）')); });
+  if (d.survey) { h.push('', '［アンケート］'); SURVEY.forEach(function (q) { h.push(q.head + '：' + (d.survey[q.key] || '')); }); }
+  return h.join('\n');
+}
+function allRecords() {
+  var out = [];
+  try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf(LS + 'rec_') === 0) { var r = lsGet(k, null); if (r) out.push({ key: k, rec: r }); } } } catch (e) { }
+  return out;
+}
+function exportCsv() {
+  var head = ['版', '組', '番号', '場面', '状態', '往復数', '納得感（前）', '納得感（後）', '入力したこと', '対話（全文）', 'まとめ'].concat(SURVEY.map(function (q) { return q.head; })).concat(['決まり外れ', '作り直しの回数', 'モデル', 'プロンプト版', '開始', '対話ID']);
+  var rows = [head];
+  allRecords().forEach(function (x) {
+    (x.rec.dialogs || []).forEach(function (d) {
+      var talk = d.history.filter(function (h) { return h.k !== 'input'; }).map(function (h) { return (h.r === 'u' ? '生徒：' : 'ＡＩ：') + h.t; }).join('\n');
+      var sum = SCENES[d.scene].summary.map(function (f) { return (d.summary || {})[f.key] ? f.label + '：' + d.summary[f.key] : ''; }).filter(String).join('\n');
+      var models = {}; d.history.forEach(function (h) { if (h.model) models[h.model] = 1; });
+      rows.push([variantName(d.variant), d.cls, numLabel(d.num), SCENES[d.scene].short, d.status, d.turns, d.n1, d.n2, d.history[0] ? d.history[0].t : '', talk, sum]
+        .concat(SURVEY.map(function (q) { return d.survey ? d.survey[q.key] || '' : ''; }))
+        .concat([d.guard || 0, d.history.reduce(function (a, h) { return a + (h.regen || 0); }, 0), Object.keys(models).join('、'), d.pv, fmtTime(d.started), d.id]));
+    });
+  });
+  var csv = rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+  download('問い返しAI_' + VARIANT_NAME + '_記録.csv', '﻿' + csv, 'text/csv;charset=utf-8');
+}
+function clearRecords(testOnly) {
+  var list = allRecords().filter(function (x) { return !testOnly || String(x.rec.num || '').charAt(0) === 'T'; });
+  if (!list.length) { alert('消す記録はありません。'); return; }
+  if (!confirm(VARIANT_NAME + 'の' + (testOnly ? 'テスト番号の記録 ' : 'すべての記録 ') + list.length + '人分を消します。元に戻せません。よいですか？')) return;
+  list.forEach(function (x) { lsDel(x.key); }); openScene();
+}
+
+/* ================= 設定 ================= */
+function renderModelSelects(list) {
+  var all = (list || MODEL_CHOICES).slice();
+  [shared.modelMain, shared.modelBackup].forEach(function (m) { if (m && all.indexOf(m) < 0) all.unshift(m); });
+  $('modelMain').innerHTML = all.map(function (m) { return '<option' + (m === shared.modelMain ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
+  $('modelBackup').innerHTML = '<option value="">（使わない）</option>' + all.map(function (m) { return '<option' + (m === shared.modelBackup ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
+}
+function renderStageSettings() {
+  var st = ui.stage, S = settings.stages[st];
+  $('stageSetTitle').textContent = SCENES[st].title + 'の設定（' + VARIANT_NAME + '）';
+  if (IS_SENPAI) {
+    $('stageSettings').innerHTML = '<p class="note">先輩版のプロンプトは「プロンプト.gs」（' + esc(PROMPT_VERSION) + '）そのままで、ここでは変えられません。水温・事例・最初の説明は、上の「授業の値」と記録から差し込まれます。</p>';
+    return;
+  }
+  var h = '<label class="f" for="s_seen">① 課題と生徒が見たこと <span class="hint">必須。{{TEMP}} に演示の水温が入ります。広げるでは、事例が自動で足されます</span></label><textarea id="s_seen" style="min-height:120px">' + esc(S.seen) + '</textarea>';
+  if (VARIANT === 'minimal') h += '<p class="note">簡潔版：欄には「何を」だけを短く書きます。「どう問うか」は書きません（段階ごとの決まった問い方に任せます）。</p>';
+  if (IS_DETAILED) {
+    h += '<label class="f" for="s_nerai">② ねらい（生徒にたどり着いてほしい考え） <span class="hint">必須。AIからは言いません</span></label><textarea id="s_nerai" style="min-height:110px">' + esc(S.nerai) + '</textarea>';
+    h += '<label class="f" for="s_kishu">③ 習っていること／まだ習っていないこと <span class="hint">任意</span></label><textarea id="s_kishu">' + esc(S.kishu) + '</textarea>';
+    h += '<label class="f" for="s_kangae">④ 生徒がもちやすい考え <span class="hint">任意。生徒には言いません</span></label><textarea id="s_kangae" style="min-height:110px">' + esc(S.kangae) + '</textarea>';
+    h += '<label class="f" for="s_guard">AIから言わせない言葉 <span class="hint">任意。「、」区切り。使ったら作り直します</span></label><input type="text" id="s_guard" value="' + esc(S.guard) + '">';
+  } else {
+    h += '<p class="note">汎用版では、単元の情報は①だけを使います。</p>';
+  }
+  h += '<label class="f" for="s_grade">学年 <span class="hint">プロンプトの「〇〇の理科の授業で」に入る</span></label><input type="text" id="s_grade" value="' + esc(settings.grade) + '">';
+  $('stageSettings').innerHTML = h;
+}
+function openSettings() {
+  $('apiKey').value = apiKey;
+  ['demoMin', 'demoA', 'demoB', 'case1', 'case2', 'case3'].forEach(function (k) { $(k).value = shared[k] || ''; });
+  $('surveyOn').checked = !!shared.surveyOn;
+  renderModelSelects(lsGet(LS_SHARED + '_models', null)); renderStageSettings();
+  $('settingsDlg').showModal();
+}
+function readSettingsForm() {
+  apiKey = $('apiKey').value.trim(); lsSet(LS_KEY, apiKey);
+  shared.modelMain = $('modelMain').value; shared.modelBackup = $('modelBackup').value;
+  ['demoMin', 'demoA', 'demoB', 'case1', 'case2', 'case3'].forEach(function (k) { shared[k] = $(k).value.trim(); });
+  shared.surveyOn = $('surveyOn').checked;
+  if (!IS_SENPAI) {
+    var S = settings.stages[ui.stage];
+    ['seen', 'nerai', 'kishu', 'kangae', 'guard'].forEach(function (f) { var e = $('s_' + f); if (e) S[f] = e.value; });
+    var g = $('s_grade'); if (g) settings.grade = g.value.trim() || '中学校';
+  }
+}
+function saveSettings() {
+  readSettingsForm(); lsSet(LS_SHARED, shared); lsSet(LS + 'settings', settings);
+  $('settingsDlg').close(); renderFoot(); openScene();
+}
+function loadModels() {
+  var key = $('apiKey').value.trim(); if (!key) { alert('APIキーを入れてください。'); return; }
+  $('loadModels').disabled = true;
+  fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error) throw new Error(d.error.message);
+      var ms = (d.models || []).filter(function (m) { return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /gemini/.test(m.name) && !/(image|tts|audio|live|embedding|transcribe|robotics)/.test(m.name); }).map(function (m) { return m.name.replace(/^models\//, ''); });
+      if (!ms.length) throw new Error('使えるモデルが見つかりませんでした');
+      lsSet(LS_SHARED + '_models', ms);
+      shared.modelMain = $('modelMain').value; shared.modelBackup = $('modelBackup').value;
+      renderModelSelects(ms); alert(ms.length + '個のモデルを読み込みました。');
+    })
+    .catch(function (e) { alert('読み込めませんでした：' + e.message); })
+    .then(function () { $('loadModels').disabled = false; });
+}
+function viewPrompt() {
+  readSettingsForm();
+  var d = (D && D.scene === ui.stage) ? D : null;
+  $('promptText').textContent = buildSystemPrompt(VARIANT, ui.stage, settings, promptCtx(d));
+  $('promptMeta').textContent = VARIANT_NAME + '／' + SCENES[ui.stage].title + '／プロンプト ' + PROMPT_VERSION + (hasWho() ? '／' + ui.cls + ' ' + numLabel(ui.num) + 'の記録で差し込み' : '') + '（保存前の内容も反映）';
+  $('promptDlg').showModal();
+}
+function renderFoot() {
+  $('foot').textContent = VARIANT_NAME + '　画面 ' + APP_VERSION + '　プロンプト ' + PROMPT_VERSION + '　モデル ' + shared.modelMain + (shared.modelBackup ? '（予備 ' + shared.modelBackup + '）' : '') + (apiKey ? '' : '　（APIキー未設定）');
+}
+
+/* ================= つなぐ ================= */
+document.addEventListener('change', function (ev) {
+  var t = ev.target;
+  if (t.type === 'radio') document.querySelectorAll('input[name="' + t.name + '"]').forEach(function (x) { x.parentNode.classList.toggle('on', x.checked); });
+});
+$('cls').onchange = function () { ui.cls = this.value; saveUi(); openScene(); };
+$('num').onchange = function () { ui.num = this.value; saveUi(); openScene(); };
+$('fillSample').onclick = fillSample;
+$('clearTest').onclick = function () { if (confirm(ui.cls + '　' + numLabel(ui.num) + ' の記録（' + VARIANT_NAME + '）を消します。よいですか？')) { lsDel(recKey()); openScene(); } };
+$('startBtn').onclick = startDialog;
+$('sendBtn').onclick = send;
+$('retryBtn').onclick = function () { if (!busy && D) talk(); };
+$('say').addEventListener('input', updateCounter);
+$('say').addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); send(); } });
+$('callBtn').onclick = function () { if (!D) return; D.calling = D.calling ? '' : Date.now(); saveDialog(D); setCall(!!D.calling); };
+$('toSummary').onclick = function () { if (D.turns < 1 && !confirm('まだＡＩに一度も答えていません。まとめに進みますか。')) return; renderSummary(); };
+$('backChat').onclick = function () { enterChat(); };
+$('sendSummary').onclick = sendSummary;
+$('svForm').addEventListener('click', function (ev) {
+  var b = ev.target.closest('button[data-pick]'); if (!b) return;
+  var ta = $('svForm').querySelector('textarea[name="sv_q4"]'); if (!ta) return;
+  ta.value = (ta.value ? ta.value + '\n' : '') + '「' + b.getAttribute('data-pick') + '」';
+});
+$('sendSurvey').onclick = sendSurvey;
+$('surveyLater').onclick = function () { renderFinished(); };
+$('doneBack').onclick = function () { openScene(); };
+$('dlLog').onclick = function () { if (D) download('対話記録_' + VARIANT_NAME + '_' + SCENES[D.scene].short + '_' + D.cls + '_' + numLabel(D.num) + '.txt', dialogText(D)); };
+$('finView').onclick = function () { var b = $('finViewBox'); b.innerHTML = '<pre class="prompt">' + esc(dialogText(D)) + '</pre><div class="btns"><button id="finDl">ダウンロード</button></div>'; b.classList.remove('hidden'); $('finDl').onclick = $('dlLog').onclick; };
+$('finSurvey').onclick = function () { openSurvey(); };
+$('finRedo').onclick = function () {
+  if (!confirm('前の対話は記録に残ります。はじめからやり直しますか。')) return;
+  D.status = REDO; saveDialog(D); D = null; renderWho(); renderForm();
+};
+$('openSettings').onclick = openSettings;
+$('closeSettings').onclick = function () { $('settingsDlg').close(); };
+$('saveSettings').onclick = saveSettings;
+$('toggleKey').onclick = function () { var k = $('apiKey'); k.type = k.type === 'password' ? 'text' : 'password'; this.textContent = k.type === 'password' ? '表示' : '隠す'; };
+$('loadModels').onclick = loadModels;
+$('viewPrompt').onclick = viewPrompt;
+$('closePrompt').onclick = function () { $('promptDlg').close(); };
+$('copyPrompt').onclick = function () { try { navigator.clipboard.writeText($('promptText').textContent); this.textContent = 'コピーしました'; } catch (e) { } };
+$('resetStage').onclick = function () {
+  if (IS_SENPAI) { alert('先輩版のプロンプトは変えられないので、戻すものはありません。'); return; }
+  if (!confirm(SCENES[ui.stage].title + 'の設定を初期値に戻します。よいですか？')) return;
+  settings.stages[ui.stage] = clone(BASE_DEFAULTS.stages[ui.stage]); lsSet(LS + 'settings', settings); renderStageSettings();
+};
+$('exportCsv').onclick = exportCsv;
+$('clearAllTest').onclick = function () { clearRecords(true); };
+$('clearAll').onclick = function () { clearRecords(false); };
+
+renderTabs(); renderFoot(); openScene();
+
+</script>
+</body>
+</html>
